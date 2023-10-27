@@ -40,11 +40,16 @@ $inputs = @{
     gist_token         = Get-ActionInput gist_token
     gist_badge_label   = Get-ActionInput gist_badge_label
     gist_badge_message = Get-ActionInput gist_badge_message
+    page_name                 = Get-ActionInput page_name
+    page_badge_label          = Get-ActionInput page_badge_label
+    page_badge_message        = Get-ActionInput page_badge_message
     coverage_paths     = Get-ActionInput coverage_paths
     coverage_report_name = Get-ActionInput coverage_report_name
     coverage_report_title = Get-ActionInput coverage_report_title
     coverage_gist      = Get-ActionInput coverage_gist
     coverage_gist_badge_label = Get-ActionInput coverage_gist_badge_label
+    coverage_page      = Get-ActionInput coverage_page
+    coverage_page_badge_label = Get-ActionInput coverage_page_badge_label
     tests_fail_step    = Get-ActionInput tests_fail_step
 }
 
@@ -450,6 +455,107 @@ function Publish-ToGist {
     }
 }
 
+function New-GHPage {
+    param(
+        [string]$reportData,
+        [string]$coverageData
+    )
+
+    Write-ActionInfo "Creating markdown for GH Pages"
+
+    $pageBaseDir = Join-Path "$env:RUNNER_TEMP" "page_output"
+
+    if (-not (Test-Path $pageBaseDir)) {
+        New-Item -Path $pageBaseDir -ItemType Directory | Out-Null
+    }
+
+    $reportPageName = $inputs.page_name
+    if ($reportPageName -notlike "*.md") {
+        $reportPageName = $reportPageName + ".md"
+    }
+    $reportPageShortName = [io.path]::GetFileNameWithoutExtension($reportPageName)
+    Write-ActionInfo "Resolved Page Name.....: [$reportPageName]"
+
+    $resultPath = Join-Path $pageBaseDir $reportPageName
+    Write-ActionInfo "Writing test results to $resultPath"
+    Set-Content -Path $resultPath -Value $reportData
+
+    if ($inputs.page_badge_label) {
+        $page_badge_label = $inputs.page_badge_label
+        $page_badge_message = $inputs.page_badge_message
+
+        if (-not $page_badge_message) {
+            $page_badge_message = '%Result%'
+        }
+
+        $page_badge_label = Resolve-EscapeTokens $page_badge_label $pesterResult -UrlEncode
+        $page_badge_message = Resolve-EscapeTokens $page_badge_message $pesterResult -UrlEncode
+        $page_badge_color = switch ($pesterResult.Result) {
+            'Passed' { 'green' }
+            'Failed' { 'red' }
+            default { 'yellow' }
+        }
+        $page_badge_url = "https://img.shields.io/badge/$page_badge_label-$page_badge_message-$page_badge_color"
+        Write-ActionInfo "Computed Badge URL: $page_badge_url"
+        $badgePath = Join-Path $pageBaseDir "$($reportPageShortName)_badge.svg"
+        Invoke-WebRequest $page_badge_url -ErrorVariable $pageBadgeError -OutFile $badgePath | Out-Null
+        if ($pageBadgeError) {
+            throw "Error getting badge for GH page: $($pageBadgeError.Message)"
+        }
+    }
+    if ($coverageData) {
+        $coveragePath = Join-Path $pageBaseDir "$($reportPageShortName)_Coverage.md"
+        Write-ActionInfo "Writing coverage results to $coveragePath"
+        Set-Content -Path $coveragePath -Value $coverageData
+    }
+    if ($inputs.coverage_page_badge_label) {
+        $coverage_page_badge_label = $inputs.coverage_page_badge_label
+        $coverage_page_badge_label = Resolve-EscapeTokens $coverage_page_badge_label $pesterResult -UrlEncode
+
+        $coverageXmlData = Select-Xml -Path $coverage_results_path -XPath "/report/counter[@type='LINE']"
+        $coveredLines = $coverageXmlData.Node.covered
+        Write-Host "Covered Lines: $coveredLines"
+        $missedLines = $coverageXmlData.Node.missed
+        Write-Host "Missed Lines: $missedLines"
+        if ($missedLines -eq 0) {
+            $coveragePercentage = 100
+        }
+        else {
+            $coveragePercentage = [math]::Round(100 - (($missedLines / $coveredLines) * 100))
+        }
+        $coveragePercentageString = "$coveragePercentage%"
+
+        if ($coveragePercentage -eq 100) {
+            $coverage_page_badge_color = 'brightgreen'
+        }
+        elseif ($coveragePercentage -ge 80) {
+            $coverage_page_badge_color = 'green'
+        }
+        elseif ($coveragePercentage -ge 60) {
+            $coverage_page_badge_color = 'yellowgreen'
+        }
+        elseif ($coveragePercentage -ge 40) {
+            $coverage_page_badge_color = 'yellow'
+        }
+        elseif ($coveragePercentage -ge 20) {
+            $coverage_page_badge_color = 'orange'
+        }
+        else {
+            $coverage_page_badge_color = 'red'
+        }
+
+        $coverage_page_badge_url = "https://img.shields.io/badge/$coverage_page_badge_label-$coveragePercentageString-$coverage_page_badge_color"
+        Write-ActionInfo "Computed Coverage Badge URL: $coverage_page_badge_url"
+        $coverageBadgePath = Join-Path $pageBaseDir "$($reportPageShortName)_coverage_badge.svg"
+        Invoke-WebRequest $coverage_page_badge_url -ErrorVariable $coveragePageBadgeError -OutFile $coverageBadgePath | Out-Null
+        if ($coveragePageBadgeError) {
+            throw "Error getting coverage badge for GH page: $($coveragePageBadgeError.Message)"
+        }
+    }
+
+    Set-ActionOutput -Name pages_path -Value $pageBaseDir
+}
+
 if ($test_results_path) {
     Set-ActionOutput -Name test_results_path -Value $test_results_path
 
@@ -476,6 +582,14 @@ if ($test_results_path) {
             Publish-ToGist -ReportData $reportData -CoverageData $coverageSummaryData
         } else {
             Publish-ToGist -ReportData $reportData
+        }
+    }
+    if ($inputs.page_name) {
+        if ($inputs.coverage_page) {
+            New-GHPage -ReportData $reportData -CoverageData $coverageSummaryData
+        }
+        else {
+            New-GHPage -ReportData $reportData
         }
     }
 }
