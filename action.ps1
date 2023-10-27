@@ -464,7 +464,7 @@ function New-GHPage {
     $pageBaseDir = Join-Path "$env:RUNNER_TEMP" "page_output"
 
     if (-not (Test-Path $pageBaseDir)) {
-        New-Item -Path $pageBaseDir -ItemType Directory
+        New-Item -Path $pageBaseDir -ItemType Directory | Out-Null
     }
 
     $reportPageName = $inputs.page_name
@@ -503,7 +503,7 @@ function New-GHPage {
     }
     if ($coverageData) {
         $coveragePath = Join-Path $pageBaseDir "$($reportPageShortName)_Coverage.md"
-        Write-ActionInfo "Writing coverage results to $resultPath"
+        Write-ActionInfo "Writing coverage results to $coveragePath"
         Set-Content -Path $coveragePath -Value $coverageData
     }
     if ($inputs.coverage_page_badge_label) {

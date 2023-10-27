@@ -321,7 +321,7 @@ runs:
         INPUT_COVERAGE_REPORT_TITLE: ${{ inputs.coverage_report_title }}
         INPUT_COVERAGE_GIST: ${{ inputs.coverage_gist }}
         INPUT_COVERAGE_GIST_BADGE_LABEL: ${{ inputs.coverage_gist_badge_label }}
-        INPUT_PAGE_GIST: ${{ inputs.coverage_page }}
-        INPUT_PAGE_GIST_BADGE_LABEL: ${{ inputs.coverage_page_badge_label }}
+        INPUT_COVERAGE_PAGE: ${{ inputs.coverage_page }}
+        INPUT_COVERAGE_PAGE_BADGE_LABEL: ${{ inputs.coverage_page_badge_label }}
         INPUT_TESTS_FAIL_STEP: ${{ inputs.tests_fail_step }}
 
