@@ -463,6 +463,10 @@ function New-GHPage {
 
     $pageBaseDir = Join-Path "$env:RUNNER_TEMP" "page_output"
 
+    if (-not (Test-Path $pageBaseDir)) {
+        New-Item -Path $pageBaseDir -ItemType Directory
+    }
+
     $reportPageName = $inputs.page_name
     if ($reportPageName -notlike "*.md") {
         $reportPageName = $reportPageName + ".md"
