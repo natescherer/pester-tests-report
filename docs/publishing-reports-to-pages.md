@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Run Pester Tests
         id: pester
-        uses: natescherer/pester-tests-report@combined
+        uses: zyborg/pester-tests-report@v1
         with:
           shell: ${{ matrix.shell }}
           skip_check_run: true
