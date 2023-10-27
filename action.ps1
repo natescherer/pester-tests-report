@@ -580,10 +580,10 @@ if ($test_results_path) {
     }
     if ($inputs.page_name) {
         if ($inputs.coverage_page) {
-            Publish-ToGist -ReportData $reportData -CoverageData $coverageSummaryData
+            New-GHPage -ReportData $reportData -CoverageData $coverageSummaryData
         }
         else {
-            Publish-ToGist -ReportData $reportData
+            New-GHPage -ReportData $reportData
         }
     }
 }
